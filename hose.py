@@ -114,6 +114,8 @@ def main(argv):
                     for label in labels:
                         score = res['result']['classification'][label]
                         if score > .6:
+                          GPIO.output(led_pin, GPIO.HIGH)
+                        else:
                           GPIO.output(led_pin, GPIO.LOW)
                         print('%s: %.2f\t' % (label, score), end='')
                     print('', flush=True)
