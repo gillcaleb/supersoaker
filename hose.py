@@ -5,6 +5,7 @@ import sys, getopt
 import signal
 import time
 import RPi.GPIO as GPIO
+from picamera2 import Picamera2
 from edge_impulse_linux.image import ImageImpulseRunner
 
 runner = None
