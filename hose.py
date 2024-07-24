@@ -11,6 +11,7 @@ from edge_impulse_linux.image import ImageImpulseRunner
 runner = None
 res_width = 96                          # Resolution of camera (width)
 res_height = 96                         # Resolution of camera (height)
+cam_format = "RGB888"                   # Color format
 # if you don't want to see a camera preview, set this to False
 show_camera = False
 if (sys.platform == 'linux' and not os.environ.get('DISPLAY')):
