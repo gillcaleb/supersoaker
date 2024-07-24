@@ -100,14 +100,14 @@ def main(argv):
                         print('Result (%d ms.) ' % (res['timing']['dsp'] + res['timing']['classification']), end='')
                         for label in labels:
                             score = res['result']['classification'][label]
-                            if score > .6:
-                              GPIO.output(led_pin, GPIO.HIGH)
                             print('%s: %.2f\t' % (label, score), end='')
                         print('', flush=True)
     
                     elif "bounding_boxes" in res["result"].keys():
                         print('Found %d bounding boxes (%d ms.)' % (len(res["result"]["bounding_boxes"]), res['timing']['dsp'] + res['timing']['classification']))
                         for bb in res["result"]["bounding_boxes"]:
+                            if  bb['value'] > .6:
+                              GPIO.output(led_pin, GPIO.HIGH)
                             print('\t%s (%.2f): x=%d y=%d w=%d h=%d' % (bb['label'], bb['value'], bb['x'], bb['y'], bb['width'], bb['height']))
                             img = cv2.rectangle(img, (bb['x'], bb['y']), (bb['x'] + bb['width'], bb['y'] + bb['height']), (255, 0, 0), 1)
     
