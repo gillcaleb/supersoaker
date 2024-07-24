@@ -8,30 +8,16 @@ import RPi.GPIO as GPIO
 from edge_impulse_linux.image import ImageImpulseRunner
 
 runner = None
+res_width = 96                          # Resolution of camera (width)
+res_height = 96                         # Resolution of camera (height)
 # if you don't want to see a camera preview, set this to False
-show_camera = True
+show_camera = False
 if (sys.platform == 'linux' and not os.environ.get('DISPLAY')):
     show_camera = False
 
 def now():
     return round(time.time() * 1000)
-
-def get_webcams():
-    port_ids = []
-    for port in range(5):
-        print("Looking for a camera in port %s:" %port)
-        camera = cv2.VideoCapture(port)
-        if camera.isOpened():
-            ret = camera.read()[0]
-            if ret:
-                backendName =camera.getBackendName()
-                w = camera.get(3)
-                h = camera.get(4)
-                print("Camera %s (%s x %s) found in port %s " %(backendName,h,w, port))
-                port_ids.append(port)
-            camera.release()
-    return port_ids
-
+    
 def sigint_handler(sig, frame):
     print('Interrupted')
     if (runner):
@@ -77,58 +63,56 @@ def main(argv):
             model_info = runner.init()
             print('Loaded runner for "' + model_info['project']['owner'] + ' / ' + model_info['project']['name'] + '"')
             labels = model_info['model_parameters']['labels']
-            if len(args)>= 2:
-                videoCaptureDeviceId = int(args[1])
-            else:
-                port_ids = get_webcams()
-                if len(port_ids) == 0:
-                    raise Exception('Cannot find any webcams')
-                if len(args)<= 1 and len(port_ids)> 1:
-                    raise Exception("Multiple cameras found. Add the camera port ID as a second argument to use to this script")
-                videoCaptureDeviceId = int(port_ids[0])
-
-            camera = cv2.VideoCapture(videoCaptureDeviceId)
-            ret = camera.read()[0]
-            if ret:
-                backendName = camera.getBackendName()
-                w = camera.get(3)
-                h = camera.get(4)
-                print("Camera %s (%s x %s) in port %s selected." %(backendName,h,w, videoCaptureDeviceId))
-                camera.release()
-            else:
-                raise Exception("Couldn't initialize selected camera.")
-
-            next_frame = 0 # limit to ~10 fps here
-
-            for res, img in runner.classifier(videoCaptureDeviceId):
-                if (next_frame > now()):
-                    time.sleep((next_frame - now()) / 1000)
-
-                # print('classification runner response', res)
-
-                if "classification" in res["result"].keys():
-                    print('Result (%d ms.) ' % (res['timing']['dsp'] + res['timing']['classification']), end='')
-                    for label in labels:
-                        score = res['result']['classification'][label]
-                        if score > .6:
-                          GPIO.output(led_pin, GPIO.HIGH)
-                        else:
-                          GPIO.output(led_pin, GPIO.LOW)
-                        print('%s: %.2f\t' % (label, score), end='')
-                    print('', flush=True)
-
-                elif "bounding_boxes" in res["result"].keys():
-                    print('Found %d bounding boxes (%d ms.)' % (len(res["result"]["bounding_boxes"]), res['timing']['dsp'] + res['timing']['classification']))
-                    for bb in res["result"]["bounding_boxes"]:
-                        print('\t%s (%.2f): x=%d y=%d w=%d h=%d' % (bb['label'], bb['value'], bb['x'], bb['y'], bb['width'], bb['height']))
-                        img = cv2.rectangle(img, (bb['x'], bb['y']), (bb['x'] + bb['width'], bb['y'] + bb['height']), (255, 0, 0), 1)
-
-                if (show_camera):
-                    cv2.imshow('edgeimpulse', cv2.cvtColor(img, cv2.COLOR_RGB2BGR))
-                    if cv2.waitKey(1) == ord('q'):
-                        break
-
-                next_frame = now() + 100
+            
+            fps = 0
+            with Picamera2() as camera:
+                # Configure camera settings
+                config = camera.create_video_configuration(
+                    main={"size": (res_width, res_height), "format": cam_format})
+                camera.configure(config)
+            
+                # Start camera
+                camera.start()
+                
+                # Continuously capture frames
+                while True:
+                                                        
+                    # Get timestamp for calculating actual framerate
+                    timestamp = cv2.getTickCount()
+                    
+                    # Get array that represents the image (in RGB format)
+                    img = camera.capture_array()
+             
+                    # Extract features (e.g. grayscale image as a 2D array)
+                    features, cropped = runner.get_features_from_image(img)
+                    
+                    # Perform inference
+                    res = None
+                    try:
+                        res = runner.classify(features)
+                    except Exception as e:
+                        print("ERROR: Could not perform inference")
+                        print("Exception:", e)
+                        
+                    if "classification" in res["result"].keys():
+                        print('Result (%d ms.) ' % (res['timing']['dsp'] + res['timing']['classification']), end='')
+                        for label in labels:
+                            score = res['result']['classification'][label]
+                            if score > .6:
+                              GPIO.output(led_pin, GPIO.HIGH)
+                            else:
+                              GPIO.output(led_pin, GPIO.LOW)
+                            print('%s: %.2f\t' % (label, score), end='')
+                        print('', flush=True)
+    
+                    elif "bounding_boxes" in res["result"].keys():
+                        print('Found %d bounding boxes (%d ms.)' % (len(res["result"]["bounding_boxes"]), res['timing']['dsp'] + res['timing']['classification']))
+                        for bb in res["result"]["bounding_boxes"]:
+                            print('\t%s (%.2f): x=%d y=%d w=%d h=%d' % (bb['label'], bb['value'], bb['x'], bb['y'], bb['width'], bb['height']))
+                            img = cv2.rectangle(img, (bb['x'], bb['y']), (bb['x'] + bb['width'], bb['y'] + bb['height']), (255, 0, 0), 1)
+    
+                    frame_time = (cv2.getTickCount() - timestamp) / cv2.getTickFrequency()
+                    fps = 1 / frame_time
         finally:
             if (runner):
                 runner.stop()
