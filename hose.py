@@ -31,8 +31,16 @@ signal.signal(signal.SIGINT, sigint_handler)
 def help():
     print('python classify.py <path_to_model.eim> <Camera port ID, only required when more than 1 camera is present>')
 
-def open_valve(pin):
-    GPIO.output(pin, GPIO.HIGH)
+def activate_valve(on_pin, off_pin):
+    #open the valve
+    GPIO.output(off_pin, GPIO.LOW)
+    GPIO.output(on_pin, GPIO.HIGH)
+    time.sleep(5)
+
+    #close the valve
+    GPIO.output(on_pin, GPIO.LOW)
+    GPIO.output(off_pin, GPIO.HIGH)
+    time.sleep(10)
 
 def close_valve(pin):
     GPIO.output(pin, GPIO.LOW)
@@ -54,10 +62,13 @@ def main(argv):
         sys.exit(2)
     
     #Setup GPIO
-    led_pin = 26
+    on_pin = 26
+    off_pin = 19
     GPIO.setmode(GPIO.BCM)
-    GPIO.setup(led_pin, GPIO.OUT)
-    GPIO.output(led_pin, GPIO.LOW)
+    GPIO.setup(on_pin, GPIO.OUT)
+    GPIO.setup(off_pin, GPIO.OUT)
+    GPIO.output(on_pin, GPIO.LOW)
+    GPIO.output(off_pin, GPIO.LOW)
   
     model = args[0]
 
@@ -115,11 +126,11 @@ def main(argv):
                             print('\t%s (%.2f): x=%d y=%d w=%d h=%d' % (bb['label'], bb['value'], bb['x'], bb['y'], bb['width'], bb['height']))
                             img = cv2.rectangle(img, (bb['x'], bb['y']), (bb['x'] + bb['width'], bb['y'] + bb['height']), (255, 0, 0), 1)
                             if  bb['value'] > .6:
-                              #open_valve(led_pin)
-                              print("Activated!!!")
-                    print(frame_time)
+                              activate_valve(on_pin, off_pin)
+                    
                     frame_time = (cv2.getTickCount() - timestamp) / cv2.getTickFrequency()
                     fps = 1 / frame_time
+               
         finally:
             if (runner):
                 runner.stop()
