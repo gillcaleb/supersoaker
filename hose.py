@@ -117,8 +117,9 @@ def main(argv):
                             if  bb['value'] > .6:
                               #open_valve(led_pin)
                               print("Activated!!!")
-                    print(frame_time)
+                    
                     frame_time = (cv2.getTickCount() - timestamp) / cv2.getTickFrequency()
+                    print(frame_time)
                     fps = 1 / frame_time
         finally:
             if (runner):
