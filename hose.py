@@ -31,6 +31,12 @@ signal.signal(signal.SIGINT, sigint_handler)
 def help():
     print('python classify.py <path_to_model.eim> <Camera port ID, only required when more than 1 camera is present>')
 
+def open_valve(pin):
+    GPIO.output(pin, GPIO.HIGH)
+
+def close_valve(pin):
+    GPIO.output(pin, GPIO.LOW)
+
 def main(argv):
     try:
         opts, args = getopt.getopt(argv, "h", ["--help"])
@@ -106,11 +112,12 @@ def main(argv):
                     elif "bounding_boxes" in res["result"].keys():
                         print('Found %d bounding boxes (%d ms.)' % (len(res["result"]["bounding_boxes"]), res['timing']['dsp'] + res['timing']['classification']))
                         for bb in res["result"]["bounding_boxes"]:
-                            if  bb['value'] > .6:
-                              GPIO.output(led_pin, GPIO.HIGH)
                             print('\t%s (%.2f): x=%d y=%d w=%d h=%d' % (bb['label'], bb['value'], bb['x'], bb['y'], bb['width'], bb['height']))
                             img = cv2.rectangle(img, (bb['x'], bb['y']), (bb['x'] + bb['width'], bb['y'] + bb['height']), (255, 0, 0), 1)
-    
+                            if  bb['value'] > .6:
+                              #open_valve(led_pin)
+                              print("Activated!!!")
+                    print(frame_time)
                     frame_time = (cv2.getTickCount() - timestamp) / cv2.getTickFrequency()
                     fps = 1 / frame_time
         finally:
