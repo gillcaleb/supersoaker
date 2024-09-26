@@ -121,6 +121,7 @@ def main(argv):
                     frame_time = (cv2.getTickCount() - timestamp) / cv2.getTickFrequency()
                     print(frame_time)
                     fps = 1 / frame_time
+                    print(fps)
         finally:
             if (runner):
                 runner.stop()
