@@ -42,8 +42,6 @@ def activate_valve(on_pin, off_pin):
     GPIO.output(off_pin, GPIO.HIGH)
     time.sleep(10)
 
-def close_valve(pin):
-    GPIO.output(pin, GPIO.LOW)
 
 def main(argv):
     try:
@@ -125,10 +123,11 @@ def main(argv):
                         for bb in res["result"]["bounding_boxes"]:
                             print('\t%s (%.2f): x=%d y=%d w=%d h=%d' % (bb['label'], bb['value'], bb['x'], bb['y'], bb['width'], bb['height']))
                             img = cv2.rectangle(img, (bb['x'], bb['y']), (bb['x'] + bb['width'], bb['y'] + bb['height']), (255, 0, 0), 1)
-                            if  bb['value'] > .6:
+                            if  bb['value'] > .9:
                               activate_valve(on_pin, off_pin)
                     
                     frame_time = (cv2.getTickCount() - timestamp) / cv2.getTickFrequency()
+                    print(frame_time)
                     fps = 1 / frame_time
                
         finally:
